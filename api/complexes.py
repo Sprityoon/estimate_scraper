@@ -13,7 +13,8 @@ def handler_logic(cortarNo, token):
     url = f"https://new.land.naver.com/api/regions/complexes?cortarNo={cortarNo}&realEstateType=APT&tradeType="
     
     try:
-        resp = requests.get(url, headers=headers, timeout=5)
+        # 엄격한 타임아웃 설정
+        resp = requests.get(url, headers=headers, timeout=(2.0, 4.0))
         if resp.status_code == 200:
             return resp.json().get('complexList', [])
     except: pass
@@ -26,17 +27,18 @@ class handler(BaseHTTPRequestHandler):
         token = query.get('token', [None])[0]
 
         if not cortarNo or not token:
-            self.send_response(400)
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(b'{"error": "Missing cortarNo or token"}')
+            self.wfile.write(b'{"error": "Missing params"}')
             return
 
         complexes = handler_logic(cortarNo, token)
-        
-        self.send_response(200 if complexes is not None else 500)
+        self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         
-        response = {"complexes": complexes} if complexes is not None else {"error": "Failed to fetch complexes"}
+        response = {"complexes": complexes} if complexes is not None else {"error": "Fetch complexes failed"}
         self.wfile.write(json.dumps(response).encode('utf-8'))
