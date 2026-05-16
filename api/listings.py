@@ -1,13 +1,14 @@
 import json
+import requests
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-from scrapling.fetchers import FetcherSession
 
 def handler_logic(complexNo, token, page=1):
     headers = {
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'authorization': f'Bearer {token}',
-        'accept': 'application/json, text/plain, */*'
+        'accept': 'application/json, text/plain, */*',
+        'referer': 'https://new.land.naver.com/'
     }
     url = (f"https://new.land.naver.com/api/articles/complex/{complexNo}"
            f"?realEstateType=APT&tradeType=&rentPriceMin=0&rentPriceMax=900000000"
@@ -15,13 +16,11 @@ def handler_logic(complexNo, token, page=1):
            f"&showArticle=false&sameAddressGroup=false&priceType=RETAIL"
            f"&page={page}&complexNo={complexNo}&type=list&order=rank")
     
-    with FetcherSession() as session:
-        try:
-            resp = session.get(url, headers=headers)
-            if hasattr(resp, "body"):
-                data = json.loads(resp.body.decode('utf-8'))
-                return data.get('articleList', [])
-        except: pass
+    try:
+        resp = requests.get(url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            return resp.json().get('articleList', [])
+    except: pass
     return None
 
 class handler(BaseHTTPRequestHandler):

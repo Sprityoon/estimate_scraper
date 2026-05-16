@@ -1,5 +1,3 @@
-scrapling
+requests
 pandas
 openpyxl
-flask
-flask-cors
