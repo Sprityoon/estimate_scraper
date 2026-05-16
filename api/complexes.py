@@ -4,20 +4,32 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 def handler_logic(cortarNo, token):
+    # 데스크톱 버전에서 검증된 정밀 헤더 세트 적용
     headers = {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'authorization': f'Bearer {token}',
+        'authority': 'new.land.naver.com',
         'accept': 'application/json, text/plain, */*',
-        'referer': 'https://new.land.naver.com/'
+        'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'authorization': f'Bearer {token}',
+        'referer': 'https://new.land.naver.com/',
+        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     }
     url = f"https://new.land.naver.com/api/regions/complexes?cortarNo={cortarNo}&realEstateType=APT&tradeType="
     
     try:
-        # 엄격한 타임아웃 설정
-        resp = requests.get(url, headers=headers, timeout=(2.0, 4.0))
+        # 타임아웃을 8초로 늘려 안정성 확보 (Vercel 10초 제한 안쪽)
+        resp = requests.get(url, headers=headers, timeout=8)
         if resp.status_code == 200:
             return resp.json().get('complexList', [])
-    except: pass
+        else:
+            print(f"API Error: Status {resp.status_code}")
+    except Exception as e:
+        print(f"Request Exception: {e}")
     return None
 
 class handler(BaseHTTPRequestHandler):
@@ -31,14 +43,19 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(b'{"error": "Missing params"}')
+            self.wfile.write(json.dumps({"error": "Missing params"}).encode('utf-8'))
             return
 
         complexes = handler_logic(cortarNo, token)
+        
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         
-        response = {"complexes": complexes} if complexes is not None else {"error": "Fetch complexes failed"}
+        if complexes is not None:
+            response = {"complexes": complexes}
+        else:
+            response = {"error": "Fetch complexes failed (Check Server Logs)"}
+            
         self.wfile.write(json.dumps(response).encode('utf-8'))
