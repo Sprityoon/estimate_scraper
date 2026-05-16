@@ -20,8 +20,9 @@ def get_naver_token():
         'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
     }
     try:
+        # GitHub Actions는 시간 여유가 있으므로 타임아웃을 넉넉히(30초) 설정
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=30) as response:
             html = response.read().decode('utf-8')
         
         token_match = re.search(r'token\s*:\s*["\']([^"\']+)["\']', html)
@@ -70,7 +71,7 @@ class LegalDongScraper:
             
             si = name_parts[0]
             if len(name_parts) >= 3 and (name_parts[1].endswith('시') or name_parts[1].endswith('군')) and name_parts[2].endswith('구'):
-                gu, emd = f"{parts[1]} {parts[2]}", " ".join(parts[3:]) if len(parts) > 3 else parts[2]
+                gu, emd = f"{name_parts[1]} {name_parts[2]}", " ".join(name_parts[3:]) if len(name_parts) > 3 else name_parts[2]
             else:
                 gu, emd = name_parts[1], " ".join(name_parts[2:]) if len(name_parts) > 2 else name_parts[1]
             
