@@ -2,8 +2,8 @@ name: Update Legal Dong Data
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # 매월 1일 자정(UTC)에 실행
-  workflow_dispatch: # 수동 실행 가능
+    - cron: '0 * * * *' # 매시간 정각 실행
+  workflow_dispatch:
 
 jobs:
   update-data:
@@ -29,6 +29,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add dong.json
-          git commit -m "chore: update legal dong data $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          git add dong.json token.json
+          git commit -m "chore: update regional data and token $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
           git push

@@ -76,12 +76,23 @@ export default function ScraperPage() {
     addLog(`${selectedRegion.fullName} 수집 시작...`);
 
     try {
-      // 1. Get Token
-      addLog("인증 토큰 획득 중...");
-      const tokenRes = await fetch("/api/token");
-      const { token, error: tokenError } = await tokenRes.json();
-      if (tokenError) throw new Error(tokenError);
-      addLog("토큰 획득 성공.");
+      // 1. Get Token (From GitHub Cache first, then fallback to API)
+      addLog("인증 토큰 확인 중 (GitHub Cache)...");
+      let token = "";
+      try {
+        const githubTokenRes = await fetch("https://raw.githubusercontent.com/Sprityoon/estimate_scraper/main/token.json");
+        const tokenData = await githubTokenRes.json();
+        token = tokenData.token;
+        addLog(`토큰 로드 완료 (업데이트: ${new Date(tokenData.updated_at).toLocaleString()})`);
+      } catch (e) {
+        addLog("GitHub 캐시 토큰이 없거나 만료됨. 직접 획득 시도...");
+        const tokenRes = await fetch("/api/token");
+        const { token: apiToken, error: tokenError } = await tokenRes.json();
+        if (tokenError) throw new Error(tokenError);
+        token = apiToken;
+      }
+
+      if (!token) throw new Error("인증 토큰을 구할 수 없습니다.");
 
       // 2. Get Complexes
       addLog("단지 목록 조회 중...");

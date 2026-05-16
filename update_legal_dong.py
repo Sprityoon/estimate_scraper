@@ -5,8 +5,39 @@ import json
 import os
 import pandas as pd
 
+import urllib.request
+import zipfile
+import io
+import json
+import os
+import re
+import pandas as pd
+
+def get_naver_token():
+    """네이버 부동산에서 인증 토큰을 추출합니다."""
+    url = "https://m.land.naver.com/"
+    headers = {
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            html = response.read().decode('utf-8')
+        
+        token_match = re.search(r'token\s*:\s*["\']([^"\']+)["\']', html)
+        if token_match:
+            return token_match.group(1)
+            
+        match = re.search(r'window\.App\s*=\s*({.*?});', html, re.DOTALL)
+        if match:
+            app_state = json.loads(match.group(1).strip())
+            return app_state.get("state", {}).get("token", {}).get("token")
+    except Exception as e:
+        print(f"Token acquisition failed: {e}")
+    return None
+
 class LegalDongScraper:
-    """행정안전부/법정동 코드 데이터를 직접 수집하여 가공합니다 (XLSX 기반)."""
+    # ... (기존 클래스 내용 유지)
     DATA_URL = "https://www.code.go.kr/stdcode/regCodeFileDown.do?cPage=1&pageSize=100000&chkHigh=0&chkLow=0&disuseAt=ALL"
     
     @staticmethod
@@ -49,11 +80,19 @@ class LegalDongScraper:
         return results
 
 if __name__ == "__main__":
+    # 1. 법정동 데이터 수집 (변동이 적으므로 매번 실패하더라도 기존 파일 유지 가능)
     data = LegalDongScraper.fetch_latest_data()
     if data:
         with open("dong.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)
         print(f"성공: {len(data)}개 지역 데이터가 dong.json으로 저장되었습니다.")
+
+    # 2. 실시간 토큰 수집 (이게 핵심)
+    token = get_naver_token()
+    if token:
+        with open("token.json", "w", encoding="utf-8") as f:
+            json.dump({"token": token, "updated_at": datetime.now().isoformat()}, f, ensure_ascii=False, indent=1)
+        print(f"성공: 네이버 토큰이 token.json으로 저장되었습니다. ({token[:15]}...)")
     else:
-        print("실패: 데이터를 수집하지 못했습니다.")
-        exit(1)
+        print("실패: 토큰을 수집하지 못했습니다.")
+        if not os.path.exists("dong.json"): exit(1)
