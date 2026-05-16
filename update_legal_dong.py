@@ -6,66 +6,71 @@ import os
 import re
 import pandas as pd
 from datetime import datetime
-import requests
+from scrapling.fetchers import FetcherSession
+
+def get_page_text(page) -> str:
+    """안전하게 Scrapling Response 객체에서 전체 소스(HTML/JSON)를 추출합니다."""
+    if hasattr(page, "body"):
+        body = page.body
+        if isinstance(body, (bytes, bytearray)):
+            try: return body.decode('utf-8', errors='replace')
+            except: pass
+    if hasattr(page, "get"):
+        try: 
+            res = page.get()
+            if res: return res
+        except: pass
+    return ""
 
 def get_naver_token():
-    """네이버 부동산에서 인증 토큰을 추출합니다. (다중 엔드포인트 시도)"""
-    # 1순위: 모바일 페이지 (가장 가벼움)
-    # 2순위: PC 단지 페이지 (가장 확실함)
-    targets = [
-        {
-            "url": "https://m.land.naver.com/",
-            "headers": {
-                'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
-            }
-        },
-        {
-            "url": "https://new.land.naver.com/complexes",
-            "headers": {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'referer': 'https://www.naver.com/'
-            }
-        }
-    ]
-
-    for target in targets:
-        url = target["url"]
-        headers = target["headers"]
-        print(f"토큰 추출 시도 중... ({url})")
-        
-        try:
-            # GitHub Actions 환경의 지연을 고려해 넉넉히 20초 설정
-            resp = requests.get(url, headers=headers, timeout=20)
-            html = resp.text
-            
-            # 정규표현식 1: token: "..." 형태 (모바일용)
-            token_match = re.search(r'token\s*:\s*["\']([^"\']+)["\']', html)
-            if token_match:
-                return token_match.group(1)
-            
-            # 정규표현식 2: window.App 파싱 (PC/공통용)
-            match = re.search(r'window\.App\s*=\s*({.*?});?\s*(?:</script>|$)', html, re.DOTALL)
-            if match:
-                try:
-                    app_json = match.group(1).strip()
-                    app_state = json.loads(app_json)
-                    token = app_state.get("state", {}).get("token", {}).get("token") or app_state.get("config", {}).get("token")
-                    if token: return token
-                except: pass
-
-            # 정규표현식 3: __NEXT_DATA__ 파싱 (PC용)
-            match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.DOTALL)
-            if match:
-                try:
-                    next_data = json.loads(match.group(1))
-                    token = next_data.get("props", {}).get("pageProps", {}).get("token")
-                    if token: return token
-                except: pass
+    """네이버 부동산에서 인증 토큰을 추출합니다 (scrapling 로직 복원)."""
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'referer': 'https://www.naver.com/'
+    }
+    
+    urls = ["https://new.land.naver.com/complexes", "https://new.land.naver.com/"]
+    
+    with FetcherSession() as session:
+        for url in urls:
+            print(f"토큰 추출 시도 중... ({url})")
+            try:
+                page = session.get(url, headers=headers)
+                html = get_page_text(page)
+                if not html: continue
                 
-        except Exception as e:
-            print(f"해당 엔드포인트 실패 ({url}): {e}")
-            continue
-            
+                # 1. window.App 파싱
+                match = re.search(r'window\.App\s*=\s*({.*?});?\s*(?:</script>|$)', html, re.DOTALL)
+                if match:
+                    try:
+                        app_json = match.group(1).strip()
+                        app_state = json.loads(app_json)
+                        token = app_state.get("state", {}).get("token", {}).get("token") or app_state.get("config", {}).get("token")
+                        if token: return token
+                    except: pass
+
+                # 2. __NEXT_DATA__ 파싱 (심층 경로 탐색 복원)
+                match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.DOTALL)
+                if match:
+                    try:
+                        next_data = json.loads(match.group(1))
+                        paths = [
+                            ["props", "pageProps", "token"],
+                            ["props", "pageProps", "initialState", "app", "token"],
+                            ["props", "pageProps", "initialState", "token", "token"]
+                        ]
+                        for path in paths:
+                            val = next_data
+                            for key in path:
+                                val = val.get(key, {}) if isinstance(val, dict) else None
+                                if val is None: break
+                            if isinstance(val, str) and val:
+                                return val
+                    except: pass
+            except Exception as e:
+                print(f"해당 URL 실패: {e}")
+                continue
+                
     return None
 
 class LegalDongScraper:
@@ -127,4 +132,5 @@ if __name__ == "__main__":
         print(f"성공: 네이버 토큰이 token.json으로 저장되었습니다. ({token[:15]}...)")
     else:
         print("실패: 모든 엔드포인트에서 토큰을 수집하지 못했습니다.")
-        if not os.path.exists("dong.json"): exit(1)
+        if os.path.exists("dong.json"): exit(0)
+        else: exit(1)
