@@ -1,4 +1,5 @@
 scrapling
+curl-cffi
 requests
 pandas
 openpyxl
