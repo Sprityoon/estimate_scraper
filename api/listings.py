@@ -1,7 +1,7 @@
 import json
-import requests
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from scrapling.fetchers import FetcherSession
 
 def handler_logic(complexNo, token, page=1):
     headers = {
@@ -10,12 +10,6 @@ def handler_logic(complexNo, token, page=1):
         'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
         'authorization': f'Bearer {token}',
         'referer': 'https://new.land.naver.com/',
-        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     }
     url = (f"https://new.land.naver.com/api/articles/complex/{complexNo}"
@@ -24,12 +18,15 @@ def handler_logic(complexNo, token, page=1):
            f"&showArticle=false&sameAddressGroup=false&priceType=RETAIL"
            f"&page={page}&complexNo={complexNo}&type=list&order=rank")
     
-    try:
-        resp = requests.get(url, headers=headers, timeout=8)
-        if resp.status_code == 200:
-            return resp.json().get('articleList', [])
-    except Exception as e:
-        print(f"Listings Exception: {e}")
+    with FetcherSession() as session:
+        try:
+            resp = session.get(url, headers=headers)
+            if resp.status == 200:
+                content = resp.body
+                if isinstance(content, (bytes, bytearray)):
+                    content = content.decode('utf-8')
+                return json.loads(content).get('articleList', [])
+        except: pass
     return None
 
 class handler(BaseHTTPRequestHandler):
@@ -49,5 +46,5 @@ class handler(BaseHTTPRequestHandler):
             return
 
         listings = handler_logic(complexNo, token, page)
-        response = {"listings": listings} if listings is not None else {"error": "Fetch listings failed"}
+        response = {"listings": listings} if listings is not None else {"error": "Fetch listings failed (Scrapling Error)"}
         self.wfile.write(json.dumps(response).encode('utf-8'))
