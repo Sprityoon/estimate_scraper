@@ -1,5 +1,6 @@
 scrapling
 curl-cffi
+playwright
 requests
 pandas
 openpyxl
