@@ -1,6 +1,10 @@
 scrapling
 curl-cffi
 playwright
+browserforge
+parsel
+w3lib
+lxml
 requests
 pandas
 openpyxl

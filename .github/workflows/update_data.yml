@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas openpyxl requests scrapling curl-cffi playwright
+          pip install pandas openpyxl requests scrapling curl-cffi playwright browserforge parsel w3lib lxml
 
       - name: Run update script
         run: python update_legal_dong.py
