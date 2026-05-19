@@ -4,13 +4,18 @@ from urllib.parse import urlparse, parse_qs
 from scrapling.fetchers import FetcherSession
 
 def handler_logic(complexNo, token, page=1):
+    # 해외 거주자 위장 헤더
     headers = {
         'authority': 'new.land.naver.com',
         'accept': 'application/json, text/plain, */*',
-        'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'accept-language': 'en-US,en;q=0.9',
         'authorization': f'Bearer {token}',
         'referer': 'https://new.land.naver.com/',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
     }
     url = (f"https://new.land.naver.com/api/articles/complex/{complexNo}"
            f"?realEstateType=APT&tradeType=&rentPriceMin=0&rentPriceMax=900000000"
@@ -20,7 +25,7 @@ def handler_logic(complexNo, token, page=1):
     
     with FetcherSession() as session:
         try:
-            resp = session.get(url, headers=headers)
+            resp = session.get(url, headers=headers, timeout=8)
             if resp.status == 200:
                 content = resp.body
                 if isinstance(content, (bytes, bytearray)):
@@ -46,5 +51,5 @@ class handler(BaseHTTPRequestHandler):
             return
 
         listings = handler_logic(complexNo, token, page)
-        response = {"listings": listings} if listings is not None else {"error": "Fetch listings failed (Scrapling Error)"}
+        response = {"listings": listings} if listings is not None else {"error": "Fetch listings failed (Impersonation Failed)"}
         self.wfile.write(json.dumps(response).encode('utf-8'))

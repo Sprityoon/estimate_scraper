@@ -4,28 +4,31 @@ from urllib.parse import urlparse, parse_qs
 from scrapling.fetchers import FetcherSession
 
 def handler_logic(cortarNo, token):
+    # 해외 거주자 위장 헤더 (미국 거주 교포 스타일)
     headers = {
         'authority': 'new.land.naver.com',
         'accept': 'application/json, text/plain, */*',
-        'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'accept-language': 'en-US,en;q=0.9', 
         'authorization': f'Bearer {token}',
         'referer': 'https://new.land.naver.com/',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
     }
     url = f"https://new.land.naver.com/api/regions/complexes?cortarNo={cortarNo}&realEstateType=APT&tradeType="
     
-    # 원래 코드에서 쓰던 FetcherSession 복원
     with FetcherSession() as session:
         try:
-            page = session.get(url, headers=headers)
+            # Vercel 10초 타임아웃 이내에 끝내기 위해 8초 설정
+            page = session.get(url, headers=headers, timeout=8)
             if page.status == 200:
-                # scrapling은 .body가 바이트이므로 디코딩 필요
                 content = page.body
                 if isinstance(content, (bytes, bytearray)):
                     content = content.decode('utf-8')
                 return json.loads(content).get('complexList', [])
-        except Exception as e:
-            print(f"Scrapling API Error: {e}")
+        except: pass
     return None
 
 class handler(BaseHTTPRequestHandler):
@@ -44,5 +47,5 @@ class handler(BaseHTTPRequestHandler):
             return
 
         complexes = handler_logic(cortarNo, token)
-        response = {"complexes": complexes} if complexes is not None else {"error": "Fetch complexes failed (Scrapling Error)"}
+        response = {"complexes": complexes} if complexes is not None else {"error": "Fetch complexes failed (Impersonation Failed)"}
         self.wfile.write(json.dumps(response).encode('utf-8'))
