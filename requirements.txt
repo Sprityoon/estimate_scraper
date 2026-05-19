@@ -1,3 +1,5 @@
+flask
+flask-cors
 scrapling
 curl-cffi
 playwright

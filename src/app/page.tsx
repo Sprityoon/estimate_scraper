@@ -33,6 +33,7 @@ import * as XLSX from "xlsx";
 const VERSION = "v3.0.0-web";
 
 export default function ScraperPage() {
+  const [backendUrl, setBackendUrl] = useState(""); // 빈 문자열이면 상대 경로 사용
   const [regions, setRegions] = useState<Region[]>([]);
   const [searchTerm, setSearchVar] = useState("");
   const [searchResults, setSearchResults] = useState<Region[]>([]);
@@ -86,7 +87,8 @@ export default function ScraperPage() {
         addLog(`토큰 로드 완료 (업데이트: ${new Date(tokenData.updated_at).toLocaleString()})`);
       } catch (e) {
         addLog("GitHub 캐시 토큰이 없거나 만료됨. 직접 획득 시도...");
-        const tokenRes = await fetch("/api/token");
+        const apiBase = backendUrl || "";
+        const tokenRes = await fetch(`${apiBase}/api/token`);
         const { token: apiToken, error: tokenError } = await tokenRes.json();
         if (tokenError) throw new Error(tokenError);
         token = apiToken;
@@ -96,7 +98,8 @@ export default function ScraperPage() {
 
       // 2. Get Complexes
       addLog("단지 목록 조회 중...");
-      const compRes = await fetch(`/api/complexes?cortarNo=${selectedRegion.code}&token=${token}`);
+      const apiBase = backendUrl || "";
+      const compRes = await fetch(`${apiBase}/api/complexes?cortarNo=${selectedRegion.code}&token=${token}`);
       const { complexes, error: compError } = await compRes.json();
       if (compError) throw new Error(compError);
       addLog(`${complexes.length}개 단지 발견.`);
@@ -107,8 +110,7 @@ export default function ScraperPage() {
         const comp = complexes[i];
         addLog(`'${comp.complexName}' 매물 수집 중... (${i + 1}/${complexes.length})`);
         
-        // Simplified: Fetch page 1 only for web demo (to avoid long waits/timeouts)
-        const listRes = await fetch(`/api/listings?complexNo=${comp.complexNo}&token=${token}&page=1`);
+        const listRes = await fetch(`${apiBase}/api/listings?complexNo=${comp.complexNo}&token=${token}&page=1`);
         const { listings: complexListings } = await listRes.json();
         
         if (complexListings) {
