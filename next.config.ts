@@ -1,6 +1,6 @@
-import { defineConfig } from "next/config";
+import type { NextConfig } from "next";
 
-const nextConfig = {
+const nextConfig: NextConfig = {
   output: 'export',
   distDir: 'out',
   images: {
