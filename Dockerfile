@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
 
 # 파이썬 의존성 설치
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requests pandas openpyxl flask flask-cors scrapling curl-cffi playwright browserforge parsel w3lib lxml
+RUN pip install --no-cache-dir -r requirements.txt
 RUN python -m playwright install chromium --with-deps
 
 # 빌드된 프론트엔드 파일 복사
