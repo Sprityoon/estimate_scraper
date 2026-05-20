@@ -1,9 +1,9 @@
 "use client";
 
-# L1-10: Imports and Type Definitions
-# L12-30: Utility functions and Constants
-# L32-150: ScraperPage Component Logic
-# L152-300: JSX UI Layout
+// L1-10: Imports and Type Definitions
+// L12-30: Utility functions and Constants
+// L32-150: ScraperPage Component Logic
+// L152-300: JSX UI Layout
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Search, Download, Play, CheckCircle, Loader2, Info } from "lucide-react";
